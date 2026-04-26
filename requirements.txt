@@ -1,6 +1,10 @@
 numpy>=1.26.4
 pandas==2.2.1
 duckdb==1.0.0
-transformers==4.39.3
-torch==2.2.2
-accelerate==0.28.0
+duckdb
+fastapi
+pydantic
+google-generativeai
+pyarrow
+python-dotenv
+uvicorn
