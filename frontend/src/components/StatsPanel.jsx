@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { fetchSpendingStats } from '../api';
 
-const USER_ID = "USER_001";
+import { USER_ID } from '../config';
 
 const TREND_COLORS = {
   up: { bg: '#FAECE7', color: '#993C1D' },

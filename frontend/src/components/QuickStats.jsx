@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchUserStats } from '../api';
 
-const USER_ID = "USER_001";
+import { USER_ID } from '../config';
 
 const skeletonStyle = {
   background: 'var(--bg-secondary)',

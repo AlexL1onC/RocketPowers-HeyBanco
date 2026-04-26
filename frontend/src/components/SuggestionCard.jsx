@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import TypewriterText from './TypewriterText';
 
 const TAG_STYLES = {
@@ -20,14 +20,35 @@ const TIPO_META = {
   general:   { tagColor: 'amber',  tag: 'Hey Banco',  emoji: '🏦' },
 };
 
-function getCardImage(id) {
-  const num = (Math.abs(
-    String(id).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  ) % 5) + 1;
-  return `/assets/imgs/card_imgs/${num}.png`;
+// ── Genera un patrón SVG como fallback cuando no hay imagen ──
+function generatePattern(clusterId, index) {
+  const colors = ['#323232', '#546436', '#964831', '#7a715a', '#525a6b'];
+  const baseColor = colors[(clusterId + index) % colors.length];
+  const svg = `
+    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="p" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+          <circle cx="20" cy="20" r="2" fill="${baseColor}" opacity="0.3"/>
+          <circle cx="0" cy="0" r="1.5" fill="${baseColor}" opacity="0.2"/>
+          <circle cx="40" cy="40" r="1.5" fill="${baseColor}" opacity="0.2"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="#F2F0E2"/>
+      <rect width="100%" height="100%" fill="url(#p)"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
-export default function SuggestionCard({ suggestion, state = 'active' }) {
+function getCardImage(clusterId, index) {
+  const safeCluster = clusterId ?? -1;
+  const safeIndex = ((index ?? 0) % 4) + 1;
+  return `/assets/imgs/segmentos/${safeCluster}/${safeIndex}.png`;
+}
+
+export default function SuggestionCard({ suggestion, cardIndex = 0 }) {
+  const [imgError, setImgError] = useState(false);
+  
   const titulo      = suggestion.titulo      ?? suggestion.title       ?? '';
   const descripcion = suggestion.descripcion ?? suggestion.description ?? '';
   const cta         = suggestion.cta         ?? 'Ver más';
@@ -40,32 +61,25 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
   const tc          = TAG_STYLES[tagColor] || TAG_STYLES.coral;
 
   const steps       = suggestion.steps ?? [];
-  const imgSrc = useMemo(() => getCardImage(suggestion.id ?? 1), [suggestion.id]);
+  const clusterId   = suggestion.cluster_id;
 
-  const isActive = state === 'active';
-
-  const transforms = {
-    active: 'translateX(0)',
-    next:   'translateX(110%)',
-    prev:   'translateX(-110%)',
-  };
+  const imgSrc = useMemo(() => {
+    if (imgError) return generatePattern(clusterId, cardIndex);
+    return getCardImage(clusterId, cardIndex);
+  }, [clusterId, cardIndex, imgError]);
 
   return (
     <div
-      className="suggestion-glass-card"
       style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0,
+        position: 'relative',
+        width: '100%',
+        height: '100%',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
-        minHeight: 260,
-        transform: transforms[state] ?? 'translateX(0)',
-        opacity: isActive ? 1 : 0,
-        transition: 'transform 0.52s cubic-bezier(0.4,0,0.2,1), opacity 0.52s ease',
-        zIndex: isActive ? 2 : 1,
+        background: '#F2F0E2',
       }}
     >
-      {/* Background image */}
+      {/* Background image con fallback */}
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -73,13 +87,20 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         zIndex: 0,
-      }} />
+      }}>
+        <img 
+          src={getCardImage(clusterId, cardIndex)}
+          alt=""
+          style={{ display: 'none' }}
+          onError={() => setImgError(true)}
+        />
+      </div>
 
       {/* Cream overlay */}
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'linear-gradient(135deg, rgba(251,248,242,0.88) 0%, rgba(242,240,226,0.75) 100%)',
+        background: 'linear-gradient(135deg, rgba(251,248,242,0.92) 0%, rgba(242,240,226,0.88) 60%, rgba(251,248,242,0.95) 100%)',
         zIndex: 1,
       }} />
 
@@ -87,8 +108,8 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
       <div style={{
         position: 'absolute',
         inset: 0,
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+        backdropFilter: 'blur(12px) saturate(130%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(130%)',
         zIndex: 2,
       }} />
 
@@ -108,7 +129,7 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
         inset: 0,
         borderRadius: 'var(--radius-lg)',
         border: '1.5px solid rgba(255,255,255,0.55)',
-        boxShadow: '0 4px 24px rgba(50,50,50,0.10), inset 0 1px 0 rgba(255,255,255,0.7)',
+        boxShadow: '0 4px 24px rgba(50,50,50,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
         zIndex: 11,
         pointerEvents: 'none',
       }} />
@@ -117,15 +138,15 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
       <div style={{
         position: 'relative',
         zIndex: 12,
-        padding: '20px 22px',
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        gridTemplateRows: 'auto auto 1fr auto',
-        gap: 10,
-        minHeight: 260,
+        padding: '18px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        boxSizing: 'border-box',
+        gap: 8,
       }}>
-        {/* Tag */}
-        <div style={{ gridColumn: 1, display: 'inline-flex', alignSelf: 'start' }}>
+        {/* Header: Tag + Emoji */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <span style={{
             fontSize: 10,
             fontWeight: 600,
@@ -135,112 +156,103 @@ export default function SuggestionCard({ suggestion, state = 'active' }) {
             borderRadius: 20,
             background: tc.bg,
             color: tc.color,
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
             border: '1px solid rgba(255,255,255,0.4)',
             fontFamily: 'var(--font-body)',
+            backdropFilter: 'blur(8px)',
           }}>
             {tag}
           </span>
+          <span style={{
+            fontSize: 36,
+            lineHeight: 1,
+            filter: 'drop-shadow(0 2px 4px rgba(50,50,50,0.15))',
+          }}>
+            {emoji}
+          </span>
         </div>
 
-        {/* Emoji */}
-        <div style={{
-          gridColumn: 2,
-          gridRow: '1 / 3',
-          fontSize: 42,
-          alignSelf: 'center',
-          marginLeft: 12,
-          lineHeight: 1,
-          filter: 'drop-shadow(0 2px 4px rgba(50,50,50,0.15))',
-        }}>
-          {emoji}
-        </div>
-
-        {/* Title with typewriter */}
+        {/* Title */}
         <h2 style={{
-          gridColumn: 1,
           fontFamily: 'var(--font-display)',
-          fontSize: 19,
+          fontSize: 18,
           fontWeight: 700,
           color: 'var(--text-primary)',
-          lineHeight: 1.2,
+          lineHeight: 1.25,
           margin: 0,
+          marginTop: 4,
           textShadow: '0 1px 2px rgba(255,255,255,0.6)',
         }}>
-          {isActive ? (
-            <TypewriterText
-              key={`title-${suggestion.id}`}
-              text={titulo}
-              speed={18}
-            />
-          ) : (
-            titulo
-          )}
+          <TypewriterText key={`title-${suggestion.id}`} text={titulo} speed={20} />
         </h2>
 
-        {/* Description with typewriter */}
+        {/* Description */}
         <p style={{
-          gridColumn: '1 / -1',
-          fontSize: 13,
+          fontSize: 12.5,
           color: 'var(--text-secondary)',
-          lineHeight: 1.65,
+          lineHeight: 1.55,
           margin: 0,
           fontFamily: 'var(--font-body)',
+          flex: 1,
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
         }}>
-          {isActive ? (
-            <TypewriterText
-              key={`desc-${suggestion.id}`}
-              text={descripcion}
-              speed={12}
-            />
-          ) : (
-            descripcion
-          )}
+          <TypewriterText key={`desc-${suggestion.id}`} text={descripcion} speed={14} />
         </p>
 
-        {/* Steps */}
+        {/* Steps (máx 2, compactos) */}
         {steps.length > 0 && (
-          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {steps.map((step, i) => (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 4,
+          }}>
+            {steps.slice(0, 2).map((step, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 9,
-                fontSize: 12.5, color: 'var(--text-secondary)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontSize: 11.5, color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-body)',
               }}>
                 <div style={{
-                  width: 6, height: 6, borderRadius: '50%',
+                  width: 5, height: 5, borderRadius: '50%',
                   background: 'var(--brand-primary)', flexShrink: 0,
                 }} />
-                {step}
+                <span style={{ 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap' 
+                }}>
+                  {step}
+                </span>
               </div>
             ))}
           </div>
         )}
 
         {/* CTA */}
-        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+        <div style={{ marginTop: 'auto', paddingTop: 4 }}>
           <button
             style={{
-              padding: '7px 18px',
+              padding: '6px 16px',
               borderRadius: 20,
               border: '1px solid var(--brand-primary)',
-              background: 'rgba(255,255,255,0.35)',
+              background: 'rgba(255,255,255,0.4)',
               backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
               color: 'var(--brand-primary)',
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: 500,
               cursor: 'pointer',
               transition: 'var(--transition)',
               fontFamily: 'var(--font-body)',
+              float: 'right',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.background = 'var(--brand-primary)';
               e.currentTarget.style.color = '#fff';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.35)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.4)';
               e.currentTarget.style.color = 'var(--brand-primary)';
             }}
           >

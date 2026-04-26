@@ -3,12 +3,18 @@ import json
 import yaml
 import duckdb
 import uvicorn
-# import google.generativeai as genai
-from src.generative_delfos import generar_respuesta_delfos
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-# from src.gemini_client import generar_respuesta_delfos
+
+# ═══════════════════════════════════════════════════════════════
+# GEMINI — DESCOMENTAR CUANDO TENGAS API KEY
+# ═══════════════════════════════════════════════════════════════
+# import google.generativeai as genai
+# from src.gemini_client import generar_respuesta_delfos  # ← Versión Gemini
+
+# MOTOR ACTUAL (sin API key)
+from src.generative_delfos import generar_respuesta_delfos  # ← Versión mock/lazy
 from src.cluster_engine import get_cluster_suggestions
 
 app = FastAPI(title="Delfos API - Hey Banco")
@@ -33,8 +39,16 @@ def load_resources():
 
 config_data, prompts_data = load_resources()
 
-# genai.configure(api_key=config_data['gemini']['api_key'])
-# model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemini-2.5-flash'))
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURACIÓN GEMINI (comentada — activar cuando tengas API key)
+# ═══════════════════════════════════════════════════════════════
+# try:
+#     genai.configure(api_key=config_data['gemini']['api_key'])
+#     model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemini-2.5-flash'))
+#     print("✅ Gemini configurado correctamente")
+# except Exception as e:
+#     print(f"⚠️  Advertencia: No se pudo configurar Gemini: {e}")
+#     model_gemini = None
 
 def query_db(sql: str, params=None):
     con = duckdb.connect(DB_PATH)
@@ -48,13 +62,18 @@ def r(x):
 def limpiar_texto(texto):
     if not texto or texto == "None":
         return ""
-    import re
     texto = re.sub(r'\s+', ' ', texto)
     return texto.strip()
 
+
+# ═══════════════════════════════════════════════════════════════
+# ENDPOINTS BASE
+# ═══════════════════════════════════════════════════════════════
+
 @app.get("/")
 def home():
-    return {"status": "ok", "message": "Delfos API funcionando"}
+    return {"status": "ok", "message": "Delfos API funcionando (modo local — Gemini desactivado)"}
+
 
 @app.get("/user/{user_id}/summary")
 def user_summary(user_id: str):
@@ -120,8 +139,12 @@ def user_summary(user_id: str):
     deuda_credito = r(row_p["deuda_credito"])
     utilizacion_credito = r(deuda_credito / limite_credito_total) if limite_credito_total > 0 else 0
 
+    df_cluster = query_db("SELECT cluster_id FROM segmentos_clientes WHERE user_id = ?", [user_id])
+    cluster_id = int(df_cluster.iloc[0]['cluster_id']) if not df_cluster.empty else -1
+
     return {
         "user_id": user_id,
+        "cluster_id": cluster_id,
         "cliente": {
             "edad": int(row_c["edad"]),
             "sexo": sexo_map.get(row_c["sexo"], "Desconocido"),
@@ -163,13 +186,67 @@ def user_summary(user_id: str):
         }
     }
 
+
+# ═══════════════════════════════════════════════════════════════
+# SUGERENCIAS (CARRUSEL) — Motor local + LLM futuro comentado
+# ═══════════════════════════════════════════════════════════════
+
 @app.get("/user/{user_id}/suggestions")
 def user_suggestions(user_id: str):
     summary = user_summary(user_id)
     if "error" in summary:
         return summary
+
+    # MOTOR ACTUAL (sin LLM)
     suggestions = get_cluster_suggestions(summary)
-    return {"user_id": user_id, "suggestions": suggestions}
+    
+    cluster_id = summary.get("cluster_id", -1)
+    for s in suggestions:
+        s["cluster_id"] = cluster_id
+
+    # ═══════════════════════════════════════════════════════════
+    # FLUJO FUTURO CON GEMINI (descomentar cuando tengas API key):
+    # ═══════════════════════════════════════════════════════════
+    #
+    # if model_gemini is None:
+    #     print("⚠️  Gemini no disponible, usando motor local")
+    #     suggestions = get_cluster_suggestions(summary)
+    # else:
+    #     perfil_nombre = {
+    #         0: "Perfil Premium (Ingresos Altos)",
+    #         1: "Gastador Frecuente", 
+    #         2: "Ahorrador Conservador",
+    #         3: "Al Límite (Riesgo de Deuda)"
+    #     }.get(cluster_id, "Usuario Estándar")
+    #
+    #     prompts = [
+    #         f"Genera sugerencia de INVERSIÓN para {perfil_nombre}...",
+    #         f"Genera sugerencia de AHORRO para {perfil_nombre}...",
+    #         f"Genera sugerencia de CRÉDITO para {perfil_nombre}...",
+    #         f"Genera sugerencia de SEGURO para {perfil_nombre}..."
+    #     ]
+    #
+    #     suggestions = []
+    #     for i, prompt in enumerate(prompts):
+    #         try:
+    #             response = model_gemini.generate_content(prompt)
+    #             # parsed = json.loads(response.text)
+    #             # suggestions.append(parsed)
+    #         except Exception as e:
+    #             print(f"⚠️  Error en prompt {i}: {e}")
+    #
+    # ═══════════════════════════════════════════════════════════
+
+    return {
+        "user_id": user_id,
+        "cluster_id": cluster_id,
+        "suggestions": suggestions
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# CHAT — Usa motor con lazy import (no crashea si falta API key)
+# ═══════════════════════════════════════════════════════════════
 
 class ChatRequest(BaseModel):
     user_id: str
@@ -188,6 +265,122 @@ def chat(req: ChatRequest):
         return {"user_id": req.user_id, "response": respuesta}
     except Exception as e:
         return {"error": f"Falla en el motor de IA: {str(e)}"}
+
+
+# ═══════════════════════════════════════════════════════════════
+# ENDPOINTS AUXILIARES PARA EL DASHBOARD
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/user/{user_id}/stats")
+def user_stats(user_id: str):
+    productos = query_db("""
+        SELECT 
+            COALESCE(SUM(CASE WHEN tipo_producto IN ('cuenta_debito','cuenta_negocios') THEN saldo_actual ELSE 0 END), 0) AS balance,
+            COALESCE(SUM(CASE WHEN tipo_producto = 'inversion_hey' THEN saldo_actual ELSE 0 END), 0) AS investments
+        FROM productos WHERE user_id = ?
+    """, [user_id]).fillna(0)
+
+    tx = query_db("""
+        SELECT COALESCE(SUM(monto), 0) AS monthly_spend
+        FROM transacciones
+        WHERE user_id = ?
+        AND fecha_hora >= CURRENT_DATE - INTERVAL '30 days'
+    """, [user_id]).fillna(0)
+
+    row_p = productos.iloc[0] if not productos.empty else None
+    row_t = tx.iloc[0] if not tx.empty else None
+
+    return {
+        "balance": r(row_p["balance"]) if row_p is not None else 0,
+        "balanceDelta": "+$340 este mes",
+        "balancePositive": True,
+        "monthlySpend": r(row_t["monthly_spend"]) if row_t is not None else 0,
+        "spendDelta": "+12% vs anterior",
+        "spendPositive": False,
+        "investments": r(row_p["investments"]) if row_p is not None else 0,
+        "investDelta": "+11.2% anual",
+        "investPositive": True
+    }
+
+
+@app.get("/user/{user_id}/spending")
+def user_spending(user_id: str):
+    chart = query_db("""
+        SELECT 
+            CASE EXTRACT(MONTH FROM fecha_hora)
+                WHEN 1 THEN 'Ene' WHEN 2 THEN 'Feb' WHEN 3 THEN 'Mar'
+                WHEN 4 THEN 'Abr' WHEN 5 THEN 'May' WHEN 6 THEN 'Jun'
+                WHEN 7 THEN 'Jul' WHEN 8 THEN 'Ago' WHEN 9 THEN 'Sep'
+                WHEN 10 THEN 'Oct' WHEN 11 THEN 'Nov' ELSE 'Dic'
+            END AS mes,
+            COALESCE(SUM(monto), 0) AS gasto
+        FROM transacciones
+        WHERE user_id = ?
+        AND fecha_hora >= CURRENT_DATE - INTERVAL '5 months'
+        GROUP BY EXTRACT(MONTH FROM fecha_hora), EXTRACT(YEAR FROM fecha_hora)
+        ORDER BY EXTRACT(YEAR FROM fecha_hora), EXTRACT(MONTH FROM fecha_hora)
+        LIMIT 5
+    """, [user_id]).fillna(0)
+
+    if chart.empty:
+        chart_data = [
+            {"mes": "Ene", "gasto": 8200}, {"mes": "Feb", "gasto": 9100},
+            {"mes": "Mar", "gasto": 7800}, {"mes": "Abr", "gasto": 10500},
+            {"mes": "May", "gasto": 12800}
+        ]
+    else:
+        chart_data = [{"mes": row["mes"], "gasto": r(row["gasto"])} for _, row in chart.iterrows()]
+
+    cats = query_db("""
+        SELECT 
+            categoria_mcc AS name,
+            SUM(monto) AS amount,
+            COUNT(*) AS count
+        FROM transacciones
+        WHERE user_id = ?
+        AND fecha_hora >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY categoria_mcc
+        ORDER BY amount DESC
+        LIMIT 5
+    """, [user_id]).fillna(0)
+
+    icon_map = {
+        "restaurantes": "🍽️", "supermercado": "🛒", "transporte": "🚗",
+        "entretenimiento": "🎬", "salud": "💊", "educacion": "📚",
+        "tecnologia": "💻", "hogar": "🏠", "viajes": "✈️", "otros": "📦"
+    }
+
+    if cats.empty:
+        categories = [
+            {"name": "Restaurantes", "icon": "🍽️", "amount": 3200, "sub": "+8% vs mes pasado", "trend": "up"},
+            {"name": "Transporte", "icon": "🚗", "amount": 2100, "sub": "-5% vs mes pasado", "trend": "down"},
+            {"name": "Supermercado", "icon": "🛒", "amount": 4500, "sub": "+2% vs mes pasado", "trend": "neutral"},
+        ]
+    else:
+        categories = []
+        for _, row in cats.iterrows():
+            name = row["name"] or "otros"
+            categories.append({
+                "name": name.capitalize(),
+                "icon": icon_map.get(name.lower(), "📦"),
+                "amount": r(row["amount"]),
+                "sub": f"{int(row['count'])} transacciones",
+                "trend": "neutral"
+            })
+
+    return {"chart": chart_data, "categories": categories}
+
+
+@app.get("/user/{user_id}/goals")
+def user_goals(user_id: str):
+    return {
+        "goals": [
+            {"id": 1, "name": "MacBook Pro", "icon": "💻", "current": 25000, "target": 45000, "color": "#323232"},
+            {"id": 2, "name": "Viaje a Europa", "icon": "✈️", "current": 12000, "target": 80000, "color": "#546436"},
+            {"id": 3, "name": "Fondo de emergencia", "icon": "🛡️", "current": 15000, "target": 30000, "color": "#964831"}
+        ]
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

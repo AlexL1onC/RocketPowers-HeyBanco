@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchGoals } from '../api';
 
-const USER_ID = "USER_001";
+import { USER_ID } from '../config';
 
 function GoalBar({ goal }) {
   const pct = Math.round((goal.current / goal.target) * 100);

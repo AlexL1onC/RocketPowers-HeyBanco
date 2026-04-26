@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { sendChat } from '../api';
 import TypewriterText from './TypewriterText';
 
-const USER_ID = "USER_001";
+import { USER_ID } from '../config';
 
 export default function ChatPanel() {
   const [messages, setMessages] = useState([

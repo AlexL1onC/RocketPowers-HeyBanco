@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchUserSummary } from '../api';
 
-const USER_ID = "USER_001";
+import { USER_ID } from '../config';
 
 const NAV_ITEMS = ['Inicio', 'Cuenta', 'Inversiones', 'Crédito'];
 
