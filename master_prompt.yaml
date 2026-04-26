@@ -1,5 +1,5 @@
 delfos_config:
-  model_name: "gemini-2.5-flash"
+  model_name: "gemma-3-1b-it"
   system_prompt: |
     Eres Delfos, el asistente financiero inteligente de Hey Banco, un banco 100% digital.
 

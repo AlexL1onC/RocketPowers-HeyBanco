@@ -20,7 +20,7 @@ app = FastAPI(title="Delfos API - Hey Banco")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,7 +44,7 @@ config_data, prompts_data = load_resources()
 # ═══════════════════════════════════════════════════════════════
 try:
      genai.configure(api_key=config_data['gemini']['api_key'])
-     model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemini-2.5-flash'))
+     model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemma-3-1b-it'))
      print("✅ Gemini configurado correctamente")
 except Exception as e:
      print(f"⚠️  Advertencia: No se pudo configurar Gemini: {e}")

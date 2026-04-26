@@ -61,7 +61,7 @@ def generar_respuesta_delfos(user_data, user_message):
         #     prompt += "Responde como Delfos, asesor financiero de Hey Banco. Sé breve y útil."
         #     
         #     response = client.models.generate_content(
-        #         model="gemini-2.5-flash",
+        #         model="gemini-2-flash",
         #         contents=prompt
         #     )
         #     return response.text
