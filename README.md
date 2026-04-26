@@ -149,3 +149,5 @@ http://localhost:5500
 | Chat            | localStorage |
 
 ---
+
+## **Equipo: Rocket Powers**
