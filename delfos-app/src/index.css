@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-hey-dark: #1A1A2E;
+  --color-hey-light: #F8F9FA;
+  --color-hey-accent: #FF3366;
+  --color-hey-blue: #2B4162;
+}
+
+body {
+  background-color: var(--color-hey-light);
+  color: #1f2937; /* text-gray-800 */
+}
