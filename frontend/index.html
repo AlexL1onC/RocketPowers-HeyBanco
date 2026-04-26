@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Delfos - Hey Banco</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">●</div>
+    <div class="menu">
+      <button class="active">Inicio</button>
+      <button>Estadísticas</button>
+      <button>Objetivos</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <header>
+      <h1>¡Buen día, Sofía! 👋</h1>
+      <p>Esto es lo que tengo para ti hoy — basado en tu historial financiero.</p>
+    </header>
+
+    <!-- CARDS -->
+    <section class="cards">
+      <div class="card">
+        <h3>Balance</h3>
+        <p id="balance">$0</p>
+      </div>
+
+      <div class="card">
+        <h3>Gasto mensual</h3>
+        <p id="spend">$0</p>
+      </div>
+
+      <div class="card">
+        <h3>Inversiones</h3>
+        <p id="invest">$0</p>
+      </div>
+    </section>
+
+    <!-- SUGERENCIAS -->
+    <section class="suggestions">
+      <h3>Bienvenido a Hey Banco</h3>
+      <p>Explora todas las funciones de tu banco inteligente.</p>
+      <button>Explorar →</button>
+    </section>
+
+    <!-- GASTOS -->
+    <section class="spending">
+      <h3>Gastos recientes</h3>
+      <div id="categories"></div>
+    </section>
+
+  </main>
+
+  <!-- CHAT -->
+  <aside class="chat">
+
+    <div class="chat-header">Chat IA</div>
+
+    <div id="messages" class="messages"></div>
+
+    <div class="chat-input">
+      <input id="input" placeholder="Pregúntame cualquier cosa..." />
+      <button onclick="sendMessage()">↑</button>
+    </div>
+
+  </aside>
+
+</div>
+
+<script src="main.js"></script>
+</body>
+</html>
