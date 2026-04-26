@@ -239,34 +239,38 @@ def get_financial_details(user_id: str):
     # Definimos el filtro de tiempo para reutilizarlo
     # Filtra transacciones desde hace 3 meses hasta hoy
     filtro_fecha = "fecha_hora >= (SELECT MAX(fecha_hora) FROM transacciones) - INTERVAL '3 months'"
-
-    # 1. Consulta de Categorías (Últimos 3 meses)
+    # 1. Consulta de Categorías (Para la gráfica de dona)
     query_cat = f"""
         SELECT 
             categoria_mcc AS categoria, 
             ROUND(SUM(monto), 2) AS total_monto,
             COUNT(*) AS conteo
         FROM transacciones
-        WHERE user_id = ? 
-          AND {filtro_fecha}
+        WHERE user_id = ? AND {filtro_fecha}
         GROUP BY categoria_mcc
         ORDER BY total_monto DESC
     """
     
-    # 2. Consulta de Top Comercios (Últimos 3 meses)
-    # Filtramos transferencias y aplicamos el rango de fechas
+    # 2. Consulta de Top Comercio POR Categoría
+    # Usamos ROW_NUMBER para asegurar que traemos al menos el #1 de cada categoría
     query_merchants = f"""
+        WITH ComerciosAgrupados AS (
+            SELECT 
+                categoria_mcc AS categoria,
+                COALESCE(NULLIF(NULLIF(comercio_nombre, 'NA'), ''), descripcion_libre) AS comercio,
+                SUM(monto) AS monto_comercio,
+                ROW_NUMBER() OVER(PARTITION BY categoria_mcc ORDER BY SUM(monto) DESC) as ranking
+            FROM transacciones
+            WHERE user_id = ? AND {filtro_fecha}
+            GROUP BY categoria_mcc, comercio
+        )
         SELECT 
-            COALESCE(NULLIF(NULLIF(comercio_nombre, 'NA'), ''), descripcion_libre) AS comercio,
-            categoria_mcc AS categoria,
-            ROUND(SUM(monto), 2) AS total_monto
-        FROM transacciones
-        WHERE user_id = ? 
-          AND categoria_mcc != 'transferencia'
-          AND {filtro_fecha}
-        GROUP BY comercio, categoria
+            categoria,
+            comercio,
+            ROUND(monto_comercio, 2) AS total_monto
+        FROM ComerciosAgrupados
+        WHERE ranking = 1  -- Traemos el top 1 de cada categoría detectada
         ORDER BY total_monto DESC
-        LIMIT 10
     """
     
     df_cat = query_db(query_cat, [user_id])
@@ -276,9 +280,8 @@ def get_financial_details(user_id: str):
         "user_id": user_id,
         "periodo": "Ultimos 3 meses",
         "resumen_categorias": df_cat.to_dict(orient="records"),
-        "top_comercios": df_merchants.to_dict(orient="records")
+        "top_comercios_por_categoria": df_merchants.to_dict(orient="records")
     }
-
 
 if __name__ == "__main__":
     import uvicorn
