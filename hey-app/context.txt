@@ -1,0 +1,345 @@
+*Contexto del proyecto: Hey Bank App**
+
+Estoy desarrollando una aplicación web de banca personal llamada **"Hey"** (inspirada en Hey Banco de México), construida en **React** con Create React App. El proyecto ya tiene una base funcional completa lista para correr con `npm install && npm start`.
+
+**Concepto general**
+Es un dashboard inteligente de finanzas personales que usa IA para generar sugerencias personalizadas al usuario basadas en su historial financiero. La interfaz tiene dos paneles principales en desktop: el panel izquierdo con sugerencias y estadísticas, y el panel derecho con chat, estadísticas detalladas y objetivos.
+
+**Estructura de archivos actual**
+```
+D:.
+│   .gitignore
+│   LICENSE
+│   README.md
+│   
+└───hey-app
+    │   context.txt
+    │   package-lock.json
+    │   package.json
+    │   README.md
+    │   
+    ├───public
+    │   │   index.html
+    │   │   
+    │   └───assets
+    │       └───imgs
+    │           └───card_imgs
+    └───src
+        │   App.jsx
+        │   index.css
+        │   index.js
+        │   
+        ├───components
+        │       ChatPanel.jsx
+        │       GoalsPanel.jsx
+        │       Header.jsx
+        │       QuickStats.jsx
+        │       RightPanel.jsx
+        │       StatsPanel.jsx
+        │       SuggestionCard.jsx
+        │       SuggestionsCarousel.jsx
+        │       
+        └───data
+                mockData.js
+```
+
+**Funcionalidades implementadas**
+- Carrusel de sugerencias IA (autoplay cada 4.5s, navegación manual, botón "más sugerencias", animación slide)
+- Tarjetas con tag de categoría, emoji, título, descripción, pasos accionables y CTA
+- Métricas rápidas de saldo, gasto mensual e inversiones
+- Panel derecho con 3 tabs: Chat IA / Estadísticas / Objetivos
+- Chat funcional con animación de "typing" y quick prompts
+- Gráfica de barras de gasto mensual histórico (Recharts)
+- Desglose de gasto por categoría con tendencias (↑↓)
+- Barras de progreso por objetivo de ahorro + formulario para agregar nuevas metas
+
+**Datos del usuario simulado (mockData.js)**
+- Usuario: Sofía Ramírez, saldo $12,450, gasto mensual $6,820, inversiones $3,200
+- 4 sugerencias base + 2 extras cargables: CETES, crédito por gasto en comida, meta de viaje, fondos de inversión
+- 5 categorías de gasto: restaurantes, transporte, compras, suscripciones, hogar
+- 4 objetivos: viaje a Europa (82%), auto nuevo (24%), fondo de emergencia (90%), curso de finanzas (50%)
+- Historial de gasto 6 meses: Nov–Abr
+
+**Estilo y diseño**
+- Paleta principal: #323232 (color de marca), fondos crema `#FBF8F2`
+otros colores, 
+version suave: 
+fondos: #F2F0E2, #964831, ##546436
+letra: #F9F8F1, #323232
+
+helvetica- 
+
+version fuerte:
+fondos: #FCEC02, #FBBBD3, #00CEE8
+from-[#ff66c4] to-[#d647a5]
+letra: #181313
+
+
+- Tipografías: LTS - 400
+
+Family
+LTS, Helvetica, "Helvetica Neue", Arial, sans-serif
+Style
+normal
+Weight
+400
+Color
+rgb(102, 102, 102)
+Size
+13px
+Line Height
+20px
+AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQq
+
+- Todo con `inline styles` en JSX referenciando las variables CSS globales
+
+**Lo que falta / próximos pasos sugeridos**
+(por ahora puro front end)
+animaciones carrusel: 
+quiero que mis tarjetas tengan el efecto liquid glass, no y que no aparezcan colores raros
+2. en las tarjetas agregar una imagen de la careta assets/imgs/card_imgs (por ahora aleatorio)
+3. Usa esecificamente estos colores para la marca Paleta principal: #323232 (color de marca), fondos crema `#FBF8F2`
+otros colores, 
+usa este para el logo en lugar del actual, "D:\Hey\RocketPowers-HeyBanco\hey-app\public\assets\imgs\hey_logo.png"
+
+**Dependencias instaladas**
+- `react` 18, `react-dom` 18, `react-scripts` 5
+- `recharts` 2.10
+
+---
+
+me gustaria que las animaciones sean hechas a partir de esto, <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>swiper demo</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.css"
+    />
+
+    <style>
+      body {
+        margin: 0;
+      }
+      .swiper-hero {
+        width: 100%;
+        max-width: 1600px;
+      }
+
+      .swiper-hero .swiper-slide {
+        width: 250px;
+      }
+
+      .swiper-hero img {
+        height: 255px;
+        width: 100%;
+        object-fit: cover;
+      }
+
+      @media (min-width: 1024px) {
+        .swiper-hero img {
+          height: 344px;
+        }
+      }
+
+      .swiper-hero .swiper-button-prev,
+      .swiper-hero .swiper-button-next {
+        --swiper-navigation-size: 20px;
+        background-color: white;
+        height: 70px;
+        width: 50px;
+        margin-top: -35px;
+
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .swiper-hero .swiper-button-prev {
+        border-radius: 0 65px 65px 0;
+        left: -10px;
+      }
+      .swiper-hero .swiper-button-next {
+        border-radius: 65px 0 0 65px;
+        right: -10px;
+      }
+
+      .swiper-hero:hover .swiper-button-prev,
+      .swiper-hero:hover .swiper-button-next {
+        opacity: 1;
+      }
+
+      .swiper-hero .swiper-pagination {
+        --swiper-pagination-color: white;
+        --swiper-pagination-bullet-size: 6px;
+        --swiper-pagination-bullet-inactive-color: #000;
+        --swiper-pagination-bullet-inactive-opacity: 0.25;
+        --swiper-pagination-bullet-opacity: 1;
+        --swiper-pagination-bullet-horizontal-gap: 2px;
+      }
+
+      .swiper-hero .swiper-pagination-bullet {
+        box-shadow: inset 0 0 0 1px #fff;
+      }
+
+      .swiper-hero .swiper-pagination-bullet-active {
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Slider main container -->
+    <div class="swiper swiper-hero">
+      <!-- Additional required wrapper -->
+      <div class="swiper-wrapper">
+        <!-- Slides -->
+        <div class="swiper-slide">
+          <img
+            src="https://http2.mlstatic.com/D_NQ_939987-MLA50832730063_072022-OO.webp"
+            alt=""
+          />
+        </div>
+        <div class="swiper-slide">
+          <img
+            src="https://http2.mlstatic.com/D_NQ_817829-MLA50860384312_072022-OO.webp"
+            alt=""
+          />
+        </div>
+        <div class="swiper-slide">
+          <img
+            src="https://http2.mlstatic.com/D_NQ_955859-MLA50696530729_072022-OO.webp"
+            alt=""
+          />
+        </div>
+        <div class="swiper-slide">
+          <img
+            src="https://http2.mlstatic.com/D_NQ_999003-MLA50928299324_072022-OO.webp"
+            alt=""
+          />
+        </div>
+        <div class="swiper-slide">
+          <img
+            src="https://http2.mlstatic.com/D_NQ_954078-MLA50783791927_072022-OO.webp"
+            alt=""
+          />
+        </div>
+      </div>
+      <!-- If we need pagination -->
+      <div class="swiper-pagination"></div>
+
+      <!-- If we need navigation buttons -->
+      <div class="swiper-button-prev"></div>
+      <div class="swiper-button-next"></div>
+
+      <!-- If we need scrollbar -->
+      <!-- <div class="swiper-scrollbar"></div> -->
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.js"></script>
+    <script>
+      const swiper = new Swiper(".swiper-hero", {
+        // Optional parameters
+        // slidesPerView: "auto",
+        // spaceBetween: 15,
+        // slidesPerGroupAuto: true,
+
+        direction: "horizontal",
+        loop: true,
+        // allowTouchMove: true,
+        // effect: "cube",
+        autoplay: {
+          delay: 10000,
+          pauseOnMouseEnter: true,
+          disableOnInteraction: false,
+        },
+
+        // If we need pagination
+        pagination: {
+          el: ".swiper-pagination",
+          // type: "progressbar"
+          clickable: true,
+          // dynamicBullets: true
+        },
+
+        // Navigation arrows
+        navigation: {
+          nextEl: ".swiper-button-next",
+          prevEl: ".swiper-button-prev",
+        },
+
+        // And if we need scrollbar
+        // scrollbar: {
+        //   el: ".swiper-scrollbar",
+        //   draggable: true,
+        // },
+      });
+    </script>
+  </body>
+</html>
+
+filtro liquid glass para las tarjetas, <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position: absolute;">
+  <defs>
+    <filter id="liquid-glass">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+
+/* src/index.css */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --hey-white: #F2F0E2;
+}
+
+.glass-card {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px); /* El efecto de desenfoque estándar */
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 24px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  z-index: 1;
+}
+
+/* El efecto "Liquid" solo en el fondo */
+.glass-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  backdrop-filter: url(#liquid-glass) blur(4px); /* Llamamos al filtro SVG */
+  opacity: 0.6;
+}
+
+.glass-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--hey-yellow); /* Brillo con el color de marca */
+}
+
+// src/components/SuggestionCard.jsx
+const SuggestionCard = ({ label, title, description }) => {
+  return (
+    <div className="glass-card" style={{ padding: '20px', color: '#323232' }}>
+      <div style={{ marginBottom: '12px' }}>
+        <span style={{ 
+          background: '#F2F0E2', 
+          padding: '4px 12px', 
+          borderRadius: '12px', 
+          fontSize: '11px', 
+          fontWeight: 'bold' 
+        }}>
+          {label.toUpperCase()}
+        </span>
+      </div>
+      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>{title}</h3>
+      <p style={{ margin: 0, fontSize: '14px', opacity: 0.8 }}>{description}</p>
+    </div>
+  );
+};

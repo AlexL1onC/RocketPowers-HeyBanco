@@ -1,30 +1,75 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import SuggestionCard from './SuggestionCard';
 import { SUGGESTIONS, EXTRA_SUGGESTIONS } from '../data/mockData';
 
+// Load Swiper from CDN once
+function loadSwiper() {
+  return new Promise((resolve) => {
+    if (window.Swiper) return resolve(window.Swiper);
+
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.css';
+    document.head.appendChild(css);
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.js';
+    script.onload = () => resolve(window.Swiper);
+    document.head.appendChild(script);
+  });
+}
+
 export default function SuggestionsCarousel() {
   const [allSuggestions, setAllSuggestions] = useState(SUGGESTIONS);
-  const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const swiperRef = useRef(null);
+  const swiperInstanceRef = useRef(null);
+  const containerRef = useRef(null);
 
-  const total = allSuggestions.length;
-
-  const getState = (index) => {
-    if (index === current) return 'active';
-    return 'next';
-  };
-
-  const goTo = useCallback((idx) => {
-    setCurrent(((idx % total) + total) % total);
-  }, [total]);
-
-  const next = useCallback(() => goTo(current + 1), [current, goTo]);
-  const prev = useCallback(() => goTo(current - 1), [current, goTo]);
-
+  // Init / reinit Swiper whenever slides change
   useEffect(() => {
-    const timer = setInterval(next, 4500);
-    return () => clearInterval(timer);
-  }, [next]);
+    let instance;
+    loadSwiper().then((Swiper) => {
+      if (swiperInstanceRef.current) {
+        swiperInstanceRef.current.destroy(true, true);
+      }
+      instance = new Swiper(swiperRef.current, {
+        slidesPerView: 1,
+        spaceBetween: 0,
+        loop: allSuggestions.length > 1,
+        effect: 'slide',
+        autoplay: {
+          delay: 4500,
+          pauseOnMouseEnter: true,
+          disableOnInteraction: false,
+        },
+        pagination: {
+          el: containerRef.current?.querySelector('.hey-pagination'),
+          clickable: true,
+          renderBullet: (_, cls) =>
+            `<span class="${cls}" style="border-radius:4px"></span>`,
+        },
+        navigation: {
+          nextEl: containerRef.current?.querySelector('.hey-nav-next'),
+          prevEl: containerRef.current?.querySelector('.hey-nav-prev'),
+        },
+        on: {
+          slideChange(swiper) {
+            setCurrent(swiper.realIndex);
+          },
+        },
+      });
+      swiperInstanceRef.current = instance;
+    });
+
+    return () => {
+      if (swiperInstanceRef.current) {
+        swiperInstanceRef.current.destroy(true, true);
+        swiperInstanceRef.current = null;
+      }
+    };
+  }, [allSuggestions]);
 
   const handleLoadMore = () => {
     setLoading(true);
@@ -38,63 +83,64 @@ export default function SuggestionsCarousel() {
     }, 900);
   };
 
+  const total = allSuggestions.length;
+
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+    <div ref={containerRef}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', marginBottom: 14,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.2px', color: 'var(--text-tertiary)' }}>
-            Sugerencias para ti
-          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: '1.2px',
+            color: 'var(--text-tertiary)',
+          }}>Sugerencias para ti</span>
           <span style={{
             fontSize: 10, fontWeight: 600, padding: '2px 8px',
             borderRadius: 10, background: '#EAF3DE', color: '#3B6D11',
           }}>IA</span>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{current + 1} / {total}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+          {current + 1} / {total}
+        </span>
       </div>
 
-      {/* Carousel viewport */}
-      <div style={{ position: 'relative', height: 280, marginBottom: 16, overflow: 'hidden' }}>
-        {allSuggestions.map((s, i) => (
-          <SuggestionCard
-            key={s.id}
-            suggestion={s}
-            state={getState(i)}
-          />
-        ))}
-      </div>
-
-      {/* Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <NavArrow dir="←" onClick={prev} />
-
-        {/* Dots */}
-        <div style={{ display: 'flex', gap: 5, flex: 1, justifyContent: 'center' }}>
-          {allSuggestions.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              style={{
-                width: i === current ? 20 : 7,
-                height: 7,
-                borderRadius: 4,
-                background: i === current ? 'var(--hey-orange)' : 'var(--border-medium)',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                transition: 'width 0.3s ease, background 0.3s ease',
-              }}
-            />
+      {/* Swiper */}
+      <div
+        ref={swiperRef}
+        className="swiper hey-carousel"
+        style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 12 }}
+      >
+        <div className="swiper-wrapper">
+          {allSuggestions.map((s) => (
+            <div className="swiper-slide" key={s.id} style={{ height: 'auto' }}>
+              {/* Wrapper so card is NOT position:absolute inside swiper */}
+              <div style={{ position: 'relative', minHeight: 260 }}>
+                <SuggestionCard suggestion={s} state="active" />
+              </div>
+            </div>
           ))}
         </div>
 
-        <NavArrow dir="→" onClick={next} />
+        {/* Nav arrows */}
+        <div className="swiper-button-prev hey-nav-btn hey-nav-prev" />
+        <div className="swiper-button-next hey-nav-btn hey-nav-next" />
+      </div>
+
+      {/* Bottom row: pagination + load more */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          className="swiper-pagination hey-pagination"
+          style={{ display: 'flex', gap: 5, flex: 1 }}
+        />
 
         <button
           onClick={handleLoadMore}
           disabled={loading}
           style={{
-            marginLeft: 6,
             padding: '6px 14px',
             borderRadius: 20,
             border: '0.5px solid var(--border-medium)',
@@ -105,36 +151,22 @@ export default function SuggestionsCarousel() {
             cursor: loading ? 'default' : 'pointer',
             transition: 'var(--transition)',
             whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
-          onMouseEnter={e => !loading && (e.currentTarget.style.borderColor = 'var(--hey-orange)', e.currentTarget.style.color = 'var(--hey-orange)')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-medium)', e.currentTarget.style.color = 'var(--text-secondary)')}
+          onMouseEnter={e => {
+            if (!loading) {
+              e.currentTarget.style.borderColor = 'var(--hey-orange)';
+              e.currentTarget.style.color = 'var(--hey-orange)';
+            }
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--border-medium)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
         >
           {loading ? '⟳ Cargando...' : '+ más sugerencias'}
         </button>
       </div>
     </div>
-  );
-}
-
-function NavArrow({ dir, onClick }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 30, height: 30,
-        borderRadius: '50%',
-        border: `0.5px solid ${hovered ? 'var(--hey-orange)' : 'var(--border-medium)'}`,
-        background: '#fff',
-        color: hovered ? 'var(--hey-orange)' : 'var(--text-secondary)',
-        fontSize: 14,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer',
-        transition: 'var(--transition)',
-        flexShrink: 0,
-      }}
-    >{dir}</button>
   );
 }

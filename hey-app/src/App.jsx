@@ -9,6 +9,34 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+
+      {/* ── Liquid-glass SVG filter (invisible, referenced via url(#liquid-glass)) ── */}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="0"
+        height="0"
+        style={{ position: 'absolute', pointerEvents: 'none' }}
+        aria-hidden="true"
+      >
+        <defs>
+          <filter id="liquid-glass">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.015"
+              numOctaves="2"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="18"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
+
       <Header activeNav={activeNav} setActiveNav={setActiveNav} />
 
       <main style={{
