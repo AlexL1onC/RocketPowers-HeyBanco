@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# data
+dataset_conversaciones
+01_eda_delfos.ipynb
+notebooks/01_eda_delfos.ipynb
