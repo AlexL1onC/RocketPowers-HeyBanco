@@ -1,0 +1,6 @@
+{
+  "gemini": {
+    "api_key": "TU_API_KEY_AQUI",
+    "model": "gemini-2.5-flash"
+  }
+}
