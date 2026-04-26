@@ -11,25 +11,51 @@
 <div class="app">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo">●</div>
-    <div class="menu">
-      <button class="active">Inicio</button>
-      <button>Estadísticas</button>
-      <button>Objetivos</button>
-    </div>
-  </aside>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">H</div>
+    <span>Hey</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="scrollToSection('inicio', this)">
+  <span>🏠</span>
+  <small>Inicio</small>
+</button>
+
+<button class="nav-item" onclick="scrollToSection('estadisticas', this)">
+  <span>📊</span>
+  <small>Stats</small>
+</button>
+
+<button class="nav-item" onclick="scrollToSection('recomendaciones', this)">
+  <span>✨</span>
+  <small>Recs</small>
+</button>
+
+<button class="nav-item" onclick="scrollToSection('gastos', this)">
+  <span>💳</span>
+  <small>Gastos</small>
+</button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="profile-mini">
+      <span>PS</span>
+    </button>
+  </div>
+</aside>
 
   <!-- MAIN -->
-  <main class="main">
+  <main class="main" id="mainContent">
 
-    <header>
+    <header id="inicio">
       <h1>¡Buen día, Sofía! 👋</h1>
       <p>Esto es lo que tengo para ti hoy — basado en tu historial financiero.</p>
     </header>
 
     <!-- CARDS -->
-    <section class="cards">
+    <section class="cards" id="estadisticas">
       <div class="card">
         <h3>Balance</h3>
         <p id="balance">$0</p>
@@ -47,33 +73,71 @@
     </section>
 
     <!-- SUGERENCIAS -->
-    <section class="suggestions">
-      <h3>Bienvenido a Hey Banco</h3>
-      <p>Explora todas las funciones de tu banco inteligente.</p>
-      <button>Explorar →</button>
-    </section>
+<section class="suggestions" id="recomendaciones">
+  <div class="recommendation-header">
+    <div>
+      <h3>Recomendaciones</h3>
+      <p id="profile-name">Analizando tu perfil financiero...</p>
+    </div>
+    <span id="cluster-badge" class="badge">Cluster</span>
+  </div>
+
+  <div id="recommendation-card" class="recommendation-card">
+    <h4>Cargando recomendación...</h4>
+    <p>Estamos preparando una sugerencia personalizada para ti.</p>
+  </div>
+</section>
 
     <!-- GASTOS -->
-    <section class="spending">
+<section class="spending" id="gastos">
+  <div class="section-title">
+    <div>
       <h3>Gastos recientes</h3>
-      <div id="categories"></div>
-    </section>
+      <p id="periodo">Últimos 3 meses</p>
+    </div>
+    <span class="badge">Financial Twin</span>
+  </div>
+
+  <div class="spending-layout">
+    <div id="categories" class="categories-list"></div>
+
+    <div id="merchant-detail" class="merchant-detail">
+      <div class="empty-state">
+        <span>👈</span>
+        <h4>Selecciona una categoría</h4>
+        <p>Te mostraré el comercio donde más gastaste.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
   </main>
 
   <!-- CHAT -->
-  <aside class="chat">
+<aside class="chat">
 
-    <div class="chat-header">Chat IA</div>
-
-    <div id="messages" class="messages"></div>
-
-    <div class="chat-input">
-      <input id="input" placeholder="Pregúntame cualquier cosa..." />
-      <button onclick="sendMessage()">↑</button>
+  <div class="chat-header">
+    <div>
+      <h3>Delfos IA</h3>
+      <p>Tu asistente financiero</p>
     </div>
+    <span class="chat-status">●</span>
+  </div>
 
-  </aside>
+  <div id="messages" class="messages"></div>
+
+  <div class="quick-prompts">
+    <button onclick="quickPrompt('¿En qué estoy gastando más?')">Gastos</button>
+    <button onclick="quickPrompt('Dame una recomendación financiera')">Recomendación</button>
+    <button onclick="quickPrompt('¿Cómo puedo ahorrar más?')">Ahorro</button>
+  </div>
+
+  <div class="chat-input">
+    <input id="input" placeholder="Pregúntale a Delfos..." />
+    <button onclick="sendMessage()">↑</button>
+  </div>
+
+</aside>
 
 </div>
 

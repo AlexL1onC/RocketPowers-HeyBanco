@@ -65,6 +65,23 @@ def limpiar_texto(texto):
     texto = re.sub(r'\s+', ' ', texto)
     return texto.strip()
 
+def init_app_tables():
+    con = duckdb.connect(DB_PATH)
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS recomendaciones_cache (
+            user_id VARCHAR PRIMARY KEY,
+            cluster_id INTEGER,
+            perfil VARCHAR,
+            recommendation_json VARCHAR,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    con.close()
+
+init_app_tables()
+
 
 # ═══════════════════════════════════════════════════════════════
 # ENDPOINTS BASE
@@ -250,57 +267,120 @@ def get_user_history(user_id: str, limit: int = 3):
 # SUGERENCIAS (CARRUSEL) — Motor local + LLM futuro comentado
 # ═══════════════════════════════════════════════════════════════
 
+# Cache simple en memoria para no generar la recomendación varias veces
+recommendations_cache = {}
+
 @app.get("/user/{user_id}/suggestions")
 def user_suggestions(user_id: str):
     summary = user_summary(user_id)
+
     if "error" in summary:
         return summary
 
-    # MOTOR ACTUAL (sin LLM)
-    suggestions = get_cluster_suggestions(summary)
-    
     cluster_id = summary.get("cluster_id", -1)
-    for s in suggestions:
-        s["cluster_id"] = cluster_id
 
-    # ═══════════════════════════════════════════════════════════
-    # FLUJO FUTURO CON GEMINI (descomentar cuando tengas API key):
-    # ═══════════════════════════════════════════════════════════
-    #
-    # if model_gemini is None:
-    #     print("⚠️  Gemini no disponible, usando motor local")
-    #     suggestions = get_cluster_suggestions(summary)
-    # else:
-    #     perfil_nombre = {
-    #         0: "Perfil Premium (Ingresos Altos)",
-    #         1: "Gastador Frecuente", 
-    #         2: "Ahorrador Conservador",
-    #         3: "Al Límite (Riesgo de Deuda)"
-    #     }.get(cluster_id, "Usuario Estándar")
-    
-    #     prompts = [
-    #         f"Genera sugerencia de INVERSIÓN para {perfil_nombre}...",
-    #         f"Genera sugerencia de AHORRO para {perfil_nombre}...",
-    #         f"Genera sugerencia de CRÉDITO para {perfil_nombre}...",
-    #         f"Genera sugerencia de SEGURO para {perfil_nombre}..."
-    #     ]
-    # #
-    #     suggestions = []
-    #     for i, prompt in enumerate(prompts):
-    #         try:
-    #             response = model_gemini.generate_content(prompt)
-    #             # parsed = json.loads(response.text)
-    #             # suggestions.append(parsed)
-    #         except Exception as e:
-    #             print(f"⚠️  Error en prompt {i}: {e}")
-    #
-    # ═══════════════════════════════════════════════════════════
+    perfil_nombre = {
+        0: "Perfil Premium (Ingresos Altos)",
+        1: "Gastador Frecuente",
+        2: "Ahorrador Conservador",
+        3: "Al Límite (Riesgo de Deuda)"
+    }.get(cluster_id, "Usuario Estándar")
 
-    return {
-        "user_id": user_id,
-        "cluster_id": cluster_id,
-        "suggestions": suggestions
-    }
+    # 1. Revisar si ya existe en DuckDB
+    cached = query_db("""
+        SELECT recommendation_json
+        FROM recomendaciones_cache
+        WHERE user_id = ?
+    """, [user_id])
+
+    if not cached.empty:
+        recommendation = json.loads(cached.iloc[0]["recommendation_json"])
+
+        return {
+            "user_id": user_id,
+            "cluster_id": cluster_id,
+            "perfil": perfil_nombre,
+            "recommendation": recommendation,
+            "cached": True
+        }
+
+    # 2. Si no existe, generar UNA recomendación
+    prompt = f"""
+    Eres un asesor financiero digital de Hey Banco.
+
+    Genera UNA sola recomendación personalizada para este usuario.
+
+    Perfil del usuario:
+    {perfil_nombre}
+
+    Datos del usuario:
+    {json.dumps(summary, ensure_ascii=False)}
+
+    La recomendación debe ser breve, útil y accionable.
+
+    Responde únicamente en JSON válido con esta estructura:
+    {{
+      "titulo": "",
+      "tipo": "inversión | ahorro | crédito | seguro",
+      "descripcion": "",
+      "accion_recomendada": "",
+      "razon": ""
+    }}
+    """
+
+    try:
+        if model_gemini is None:
+            recommendation = {
+                "titulo": "Mejora tu estabilidad financiera",
+                "tipo": "ahorro",
+                "descripcion": f"Según tu perfil: {perfil_nombre}, conviene fortalecer tu control de gastos y separar dinero automáticamente.",
+                "accion_recomendada": "Aparta entre 10% y 15% de tu ingreso mensual en una meta de ahorro.",
+                "razon": "Esto reduce presión financiera y crea un fondo disponible para imprevistos."
+            }
+        else:
+            response = model_gemini.generate_content(prompt)
+            texto = response.text.strip()
+            texto = texto.replace("```json", "").replace("```", "").strip()
+            recommendation = json.loads(texto)
+
+        # 3. Guardar en DuckDB para no volver a llamar al modelo
+        con = duckdb.connect(DB_PATH)
+
+        con.execute("""
+            INSERT INTO recomendaciones_cache 
+            (user_id, cluster_id, perfil, recommendation_json)
+            VALUES (?, ?, ?, ?)
+        """, [
+            user_id,
+            cluster_id,
+            perfil_nombre,
+            json.dumps(recommendation, ensure_ascii=False)
+        ])
+
+        con.close()
+
+        return {
+            "user_id": user_id,
+            "cluster_id": cluster_id,
+            "perfil": perfil_nombre,
+            "recommendation": recommendation,
+            "cached": False
+        }
+
+    except Exception as e:
+        return {
+            "user_id": user_id,
+            "cluster_id": cluster_id,
+            "perfil": perfil_nombre,
+            "recommendation": {
+                "titulo": "Recomendación no disponible",
+                "tipo": "general",
+                "descripcion": "No se pudo generar la recomendación.",
+                "accion_recomendada": "Intenta más tarde.",
+                "razon": str(e)
+            },
+            "cached": False
+        }
 
 
 # ═══════════════════════════════════════════════════════════════
