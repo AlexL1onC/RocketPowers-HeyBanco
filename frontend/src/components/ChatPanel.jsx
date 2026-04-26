@@ -18,6 +18,7 @@ export default function ChatPanel() {
   const bottomRef = useRef(null);
   const animatedIds = useRef(new Set());
 
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
@@ -55,6 +56,8 @@ export default function ChatPanel() {
       setTyping(false);
     }
   };
+
+  
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }

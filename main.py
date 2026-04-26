@@ -10,11 +10,10 @@ from pydantic import BaseModel
 # ═══════════════════════════════════════════════════════════════
 # GEMINI — DESCOMENTAR CUANDO TENGAS API KEY
 # ═══════════════════════════════════════════════════════════════
-# import google.generativeai as genai
-# from src.gemini_client import generar_respuesta_delfos  # ← Versión Gemini
+import google.generativeai as genai
+from src.gemini_client import generar_respuesta_delfos  # ← Versión Gemini
 
 # MOTOR ACTUAL (sin API key)
-from src.generative_delfos import generar_respuesta_delfos  # ← Versión mock/lazy
 from src.cluster_engine import get_cluster_suggestions
 
 app = FastAPI(title="Delfos API - Hey Banco")
@@ -22,13 +21,14 @@ app = FastAPI(title="Delfos API - Hey Banco")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 DB_PATH = "havi.duckdb"
 CONFIG_PATH = "config.json"
-PROMPTS_PATH = "prompts.yaml"
+PROMPTS_PATH = "master_prompt.yaml"
 
 def load_resources():
     with open(CONFIG_PATH, 'r') as f:
@@ -42,13 +42,13 @@ config_data, prompts_data = load_resources()
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN GEMINI (comentada — activar cuando tengas API key)
 # ═══════════════════════════════════════════════════════════════
-# try:
-#     genai.configure(api_key=config_data['gemini']['api_key'])
-#     model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemini-2.5-flash'))
-#     print("✅ Gemini configurado correctamente")
-# except Exception as e:
-#     print(f"⚠️  Advertencia: No se pudo configurar Gemini: {e}")
-#     model_gemini = None
+try:
+     genai.configure(api_key=config_data['gemini']['api_key'])
+     model_gemini = genai.GenerativeModel(config_data['gemini'].get('model', 'gemini-2.5-flash'))
+     print("✅ Gemini configurado correctamente")
+except Exception as e:
+     print(f"⚠️  Advertencia: No se pudo configurar Gemini: {e}")
+     model_gemini = None
 
 def query_db(sql: str, params=None):
     con = duckdb.connect(DB_PATH)
@@ -72,7 +72,12 @@ def limpiar_texto(texto):
 
 @app.get("/")
 def home():
-    return {"status": "ok", "message": "Delfos API funcionando (modo local — Gemini desactivado)"}
+    # Verificamos si el modelo existe para dar el mensaje correcto
+    status_ia = "ACTIVO (Gemini)" if model_gemini else "MODO LOCAL (Fallback)"
+    return {
+        "status": "ok", 
+        "message": f"Delfos API funcionando - Motor de IA: {status_ia}"
+    }
 
 
 @app.get("/user/{user_id}/summary")
@@ -106,7 +111,7 @@ def user_summary(user_id: str):
             COUNT(*) AS total_transacciones,
             COALESCE(SUM(monto), 0) AS gasto_total,
             COALESCE(AVG(monto), 0) AS ticket_promedio,
-            COUNT(DISTINCT DATE(fecha_hora)) AS racha_dias_uso,
+            COUNT(DISTINCT fecha_hora::DATE) AS racha_dias_uso,
             COALESCE(SUM(CASE WHEN estatus = 'no_procesada' THEN 1 ELSE 0 END), 0) AS transacciones_fallidas,
             COALESCE(SUM(CASE WHEN es_internacional = TRUE THEN 1 ELSE 0 END), 0) AS transacciones_internacionales,
             COALESCE(SUM(cashback_generado), 0) AS cashback_total
@@ -141,6 +146,20 @@ def user_summary(user_id: str):
 
     df_cluster = query_db("SELECT cluster_id FROM segmentos_clientes WHERE user_id = ?", [user_id])
     cluster_id = int(df_cluster.iloc[0]['cluster_id']) if not df_cluster.empty else -1
+
+    desglose_cats = query_db("""
+        SELECT categoria_mcc, SUM(monto) as total 
+        FROM transacciones WHERE user_id = ? 
+        GROUP BY categoria_mcc
+    """, [user_id]).to_dict(orient="records")
+
+
+    desglose_df = query_db("""
+        SELECT categoria_mcc, ROUND(SUM(monto), 2) AS total
+        FROM transacciones WHERE user_id = ?
+        GROUP BY categoria_mcc
+    """, [user_id])
+    desglose_dict = desglose_df.set_index('categoria_mcc')['total'].to_dict()
 
     return {
         "user_id": user_id,
@@ -179,12 +198,52 @@ def user_summary(user_id: str):
             "transacciones_fallidas": int(row_t["transacciones_fallidas"]),
             "transacciones_internacionales": int(row_t["transacciones_internacionales"]),
             "cashback_total": r(row_t["cashback_total"]),
-            "categoria_top": categoria_top.iloc[0]["categoria_mcc"] if not categoria_top.empty else None
+            "categoria_top": categoria_top.iloc[0]["categoria_mcc"] if not categoria_top.empty else None,
+            "desglose": desglose_dict
         },
         "contexto_conversacion": {
             "historial_previo": historial_limpio
         }
     }
+
+def get_user_history(user_id: str, limit: int = 3):
+    """
+    Extrae las últimas N interacciones del usuario con el bot anterior,
+    ordenadas correctamente por tiempo (más recientes primero).
+    """
+
+    try:
+        df_hist = query_db("""
+            SELECT input, output, date
+            FROM conversaciones 
+            WHERE user_id = ?
+            ORDER BY date DESC
+            LIMIT ?
+        """, [user_id, limit])
+
+        if df_hist is None or df_hist.empty:
+            return ""
+
+        df_hist = df_hist.sort_values("date", ascending=True)
+
+        history_lines = []
+
+        for _, row in df_hist.iterrows():
+            user_msg = str(row.get("input", "")).strip()
+            bot_msg = str(row.get("output", "")).strip()
+
+            # Evitar ruido vacío
+            if not user_msg and not bot_msg:
+                continue
+
+            history_lines.append(f"Usuario: {user_msg}\nAsistente: {bot_msg}")
+
+        return "\n---\n".join(history_lines)
+
+    except Exception as e:
+        print(f"Error recuperando historial: {e}")
+        return ""
+
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -218,14 +277,14 @@ def user_suggestions(user_id: str):
     #         2: "Ahorrador Conservador",
     #         3: "Al Límite (Riesgo de Deuda)"
     #     }.get(cluster_id, "Usuario Estándar")
-    #
+    
     #     prompts = [
     #         f"Genera sugerencia de INVERSIÓN para {perfil_nombre}...",
     #         f"Genera sugerencia de AHORRO para {perfil_nombre}...",
     #         f"Genera sugerencia de CRÉDITO para {perfil_nombre}...",
     #         f"Genera sugerencia de SEGURO para {perfil_nombre}..."
     #     ]
-    #
+    # #
     #     suggestions = []
     #     for i, prompt in enumerate(prompts):
     #         try:
@@ -257,10 +316,14 @@ def chat(req: ChatRequest):
     data = user_summary(req.user_id)
     if "error" in data:
         return data
+    historial = get_user_history(req.user_id)
     try:
         respuesta = generar_respuesta_delfos(
+            model=model_gemini,  # Por ahora, model_gemini es None, pero la función maneja eso internamente
+            prompts_data=prompts_data,
             user_data=data,
-            user_message=req.message
+            user_message=req.message,
+            history = historial
         )
         return {"user_id": req.user_id, "response": respuesta}
     except Exception as e:
@@ -379,6 +442,54 @@ def user_goals(user_id: str):
             {"id": 2, "name": "Viaje a Europa", "icon": "✈️", "current": 12000, "target": 80000, "color": "#546436"},
             {"id": 3, "name": "Fondo de emergencia", "icon": "🛡️", "current": 15000, "target": 30000, "color": "#964831"}
         ]
+    }
+
+@app.get("/user/{user_id}/financial_details")
+def get_financial_details(user_id: str):
+    filtro_fecha = "fecha_hora >= (SELECT MAX(fecha_hora) FROM transacciones) - INTERVAL '3 months'"
+
+    # 1. Consulta de Categorías (Para la gráfica de dona)
+    query_cat = f"""
+        SELECT 
+            categoria_mcc AS categoria, 
+            ROUND(SUM(monto), 2) AS total_monto,
+            COUNT(*) AS conteo
+        FROM transacciones
+        WHERE user_id = ? AND {filtro_fecha}
+        GROUP BY categoria_mcc
+        ORDER BY total_monto DESC
+    """
+    
+    # 2. Consulta de Top Comercio POR Categoría
+    # Usamos ROW_NUMBER para asegurar que traemos al menos el #1 de cada categoría
+    query_merchants = f"""
+        WITH ComerciosAgrupados AS (
+            SELECT 
+                categoria_mcc AS categoria,
+                COALESCE(NULLIF(NULLIF(comercio_nombre, 'NA'), ''), descripcion_libre) AS comercio,
+                SUM(monto) AS monto_comercio,
+                ROW_NUMBER() OVER(PARTITION BY categoria_mcc ORDER BY SUM(monto) DESC) as ranking
+            FROM transacciones
+            WHERE user_id = ? AND {filtro_fecha}
+            GROUP BY categoria_mcc, comercio
+        )
+        SELECT 
+            categoria,
+            comercio,
+            ROUND(monto_comercio, 2) AS total_monto
+        FROM ComerciosAgrupados
+        WHERE ranking = 1  -- Traemos el top 1 de cada categoría detectada
+        ORDER BY total_monto DESC
+    """
+    
+    df_cat = query_db(query_cat, [user_id])
+    df_merchants = query_db(query_merchants, [user_id])
+    
+    return {
+        "user_id": user_id,
+        "periodo": "Ultimos 3 meses",
+        "resumen_categorias": df_cat.to_dict(orient="records"),
+        "top_comercios_por_categoria": df_merchants.to_dict(orient="records")
     }
 
 

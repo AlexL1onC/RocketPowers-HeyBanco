@@ -41,3 +41,9 @@ export async function fetchGoals(userId) {
   if (!res.ok) throw new Error("Error al obtener objetivos");
   return res.json();
 }
+
+export async function fetchFinancialDetails(userId) {
+  const res = await fetch(`${BASE_URL}/user/${userId}/financial_details`);
+  if (!res.ok) throw new Error("Error al obtener detalles financieros");
+  return res.json();
+}

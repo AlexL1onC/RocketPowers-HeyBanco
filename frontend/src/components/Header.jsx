@@ -3,7 +3,7 @@ import { fetchUserSummary } from '../api';
 
 import { USER_ID } from '../config';
 
-const NAV_ITEMS = ['Inicio', 'Cuenta', 'Inversiones', 'Crédito'];
+const NAV_ITEMS = ['Inicio'];
 
 const styles = {
   header: {

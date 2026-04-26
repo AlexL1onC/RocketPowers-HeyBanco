@@ -10,7 +10,7 @@ dist/
 build/
 out/
 .next/
-
+config.json
 # Logs
 npm-debug.log*
 yarn-debug.log*
@@ -91,3 +91,6 @@ coverage.xml
 *.swo
 .DS_Store
 Thumbs.db
+config.json
+
+config.json

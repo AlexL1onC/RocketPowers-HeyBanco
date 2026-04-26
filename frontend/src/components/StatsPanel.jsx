@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { fetchSpendingStats } from '../api';
+import { fetchFinancialDetails, fetchSpendingStats } from '../api';
 
 import { USER_ID } from '../config';
 
@@ -33,7 +33,7 @@ export default function StatsPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSpendingStats(USER_ID)
+    fetchFinancialDetails(USER_ID)
       .then(res => setData(res))
       .catch(console.error)
       .finally(() => setLoading(false));
