@@ -7,6 +7,13 @@ app = FastAPI(title="delfos API")
 
 DB_PATH = "havi.duckdb"
 
+# Tu "biblioteca" de perfiles
+DICCIONARIO_PERFILES = {
+    0: "Perfil Premium (Ingresos Altos)",
+    1: "Gastador Frecuente",
+    2: "Ahorrador Conservador",
+    3: "Al Límite (Riesgo de Deuda)"
+}
 
 def query_db(sql: str, params=None):
     con = duckdb.connect(DB_PATH)
@@ -33,6 +40,18 @@ def home():
 
 @app.get("/user/{user_id}/summary")
 def user_summary(user_id: str):
+# 1. Consultar el cluster usando tu función query_db
+    df_cluster = query_db("SELECT cluster_id FROM segmentos_clientes WHERE user_id = ?", [user_id])
+    
+    if not df_cluster.empty:
+        id_numerico = int(df_cluster.iloc[0]['cluster_id'])
+        perfil_texto = DICCIONARIO_PERFILES.get(id_numerico, "Usuario Estándar")
+    else:
+        id_numerico = -1
+        perfil_texto = "Usuario Nuevo (Sin Segmentar)"
+
+    # 3. Mandar esto al LLM en el prompt
+    prompt_ia = f"El usuario tiene un perfil de: {perfil_texto}. "
     
     sexo_map = {
         "H": "Hombre",
@@ -193,6 +212,11 @@ def user_summary(user_id: str):
 
         "contexto_conversacion": {
             "historial_previo": historial_limpio
+        },
+        
+       "segmentacion": {
+            "cluster_id": id_numerico,
+            "perfil": perfil_texto
         }
     }
 

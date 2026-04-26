@@ -4,4 +4,6 @@ pydantic
 numpy
 pandas
 uvicorn
-re
+scikit-learn
+matplotlib
+numpy
