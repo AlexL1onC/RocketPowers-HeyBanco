@@ -234,6 +234,51 @@ def chat(req: ChatRequest):
         "response": "Hola, soy Delfos. Ya recibí tu mensaje y puedo analizar tus transacciones."
     }
 
+@app.get("/user/{user_id}/financial_details")
+def get_financial_details(user_id: str):
+    # Definimos el filtro de tiempo para reutilizarlo
+    # Filtra transacciones desde hace 3 meses hasta hoy
+    filtro_fecha = "fecha_hora >= (SELECT MAX(fecha_hora) FROM transacciones) - INTERVAL '3 months'"
+
+    # 1. Consulta de Categorías (Últimos 3 meses)
+    query_cat = f"""
+        SELECT 
+            categoria_mcc AS categoria, 
+            ROUND(SUM(monto), 2) AS total_monto,
+            COUNT(*) AS conteo
+        FROM transacciones
+        WHERE user_id = ? 
+          AND {filtro_fecha}
+        GROUP BY categoria_mcc
+        ORDER BY total_monto DESC
+    """
+    
+    # 2. Consulta de Top Comercios (Últimos 3 meses)
+    # Filtramos transferencias y aplicamos el rango de fechas
+    query_merchants = f"""
+        SELECT 
+            COALESCE(NULLIF(NULLIF(comercio_nombre, 'NA'), ''), descripcion_libre) AS comercio,
+            categoria_mcc AS categoria,
+            ROUND(SUM(monto), 2) AS total_monto
+        FROM transacciones
+        WHERE user_id = ? 
+          AND categoria_mcc != 'transferencia'
+          AND {filtro_fecha}
+        GROUP BY comercio, categoria
+        ORDER BY total_monto DESC
+        LIMIT 10
+    """
+    
+    df_cat = query_db(query_cat, [user_id])
+    df_merchants = query_db(query_merchants, [user_id])
+    
+    return {
+        "user_id": user_id,
+        "periodo": "Ultimos 3 meses",
+        "resumen_categorias": df_cat.to_dict(orient="records"),
+        "top_comercios": df_merchants.to_dict(orient="records")
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
