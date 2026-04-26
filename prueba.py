@@ -1,6 +1,6 @@
 import duckdb
 
-con = duckdb.connect("havi.duckdb")
+con = duckdb.connect("delfos.duckdb")
 
 print(con.execute("SELECT COUNT(*) FROM transacciones").fetchall())
 
