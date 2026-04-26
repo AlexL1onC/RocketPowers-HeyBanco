@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { sendChat } from '../api';
+import TypewriterText from './TypewriterText';
 
 const USER_ID = "USER_001";
 
@@ -15,6 +16,7 @@ export default function ChatPanel() {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef(null);
+  const animatedIds = useRef(new Set());
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,7 +64,6 @@ export default function ChatPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
       {/* Quick prompts */}
       <div style={{ padding: '12px 16px 0', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {QUICK.map(q => (
@@ -78,10 +79,11 @@ export default function ChatPanel() {
               fontSize: 11.5,
               cursor: 'pointer',
               transition: 'var(--transition)',
+              fontFamily: 'var(--font-body)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = 'var(--hey-orange)';
-              e.currentTarget.style.color = 'var(--hey-orange)';
+              e.currentTarget.style.borderColor = 'var(--brand-primary)';
+              e.currentTarget.style.color = 'var(--brand-primary)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.borderColor = 'var(--border-medium)';
@@ -115,15 +117,25 @@ export default function ChatPanel() {
             <div style={{
               padding: '9px 14px',
               borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-              background: m.role === 'user' ? 'var(--hey-orange)' : '#fff',
+              background: m.role === 'user' ? 'var(--brand-primary)' : '#fff',
               color: m.role === 'user' ? '#fff' : 'var(--text-primary)',
               border: m.role === 'bot' ? '0.5px solid var(--border-light)' : 'none',
               fontSize: 13,
               lineHeight: 1.55,
+              fontFamily: 'var(--font-body)',
             }}>
-              {m.text}
+              {m.role === 'bot' && !animatedIds.current.has(m.id) ? (
+                <TypewriterText
+                  text={m.text}
+                  speed={13}
+                  style={{ fontFamily: 'var(--font-body)' }}
+                  onComplete={() => animatedIds.current.add(m.id)}
+                />
+              ) : (
+                <span style={{ fontFamily: 'var(--font-body)' }}>{m.text}</span>
+              )}
             </div>
-            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{m.time}</span>
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>{m.time}</span>
           </div>
         ))}
 
@@ -175,6 +187,7 @@ export default function ChatPanel() {
             outline: 'none',
             opacity: typing ? 0.7 : 1,
             transition: 'var(--transition)',
+            fontFamily: 'var(--font-body)',
           }}
         />
         <button
@@ -183,7 +196,7 @@ export default function ChatPanel() {
           style={{
             width: 34, height: 34,
             borderRadius: '50%',
-            background: typing ? 'var(--text-tertiary)' : 'var(--hey-orange)',
+            background: typing ? 'var(--text-tertiary)' : 'var(--brand-primary)',
             border: 'none',
             color: '#fff',
             fontSize: 16,
@@ -192,8 +205,8 @@ export default function ChatPanel() {
             flexShrink: 0,
             transition: 'var(--transition)',
           }}
-          onMouseEnter={e => { if (!typing) e.currentTarget.style.background = 'var(--hey-orange-dark)'; }}
-          onMouseLeave={e => { if (!typing) e.currentTarget.style.background = 'var(--hey-orange)'; }}
+          onMouseEnter={e => { if (!typing) e.currentTarget.style.background = 'var(--brand-dark)'; }}
+          onMouseLeave={e => { if (!typing) e.currentTarget.style.background = 'var(--brand-primary)'; }}
         >↑</button>
       </div>
 

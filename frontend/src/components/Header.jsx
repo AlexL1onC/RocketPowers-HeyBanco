@@ -22,7 +22,7 @@ const styles = {
     fontFamily: 'var(--font-display)',
     fontSize: 24,
     fontWeight: 800,
-    color: '#D85A30',
+    color: 'var(--brand-primary)',
     letterSpacing: '-0.5px',
   },
   tagline: {
@@ -36,12 +36,13 @@ const styles = {
     padding: '6px 14px',
     borderRadius: 20,
     border: 'none',
-    background: active ? 'var(--hey-orange-light)' : 'transparent',
-    color: active ? 'var(--hey-orange)' : 'var(--text-secondary)',
+    background: active ? 'var(--brand-light)' : 'transparent',
+    color: active ? 'var(--brand-primary)' : 'var(--text-secondary)',
     fontSize: 13,
     fontWeight: active ? 500 : 400,
     cursor: 'pointer',
     transition: 'var(--transition)',
+    fontFamily: 'var(--font-body)',
   }),
   right: { display: 'flex', alignItems: 'center', gap: 12 },
   greeting: { fontSize: 13, color: 'var(--text-secondary)' },
@@ -49,13 +50,13 @@ const styles = {
     width: 36,
     height: 36,
     borderRadius: '50%',
-    background: '#F0997B',
+    background: 'var(--brand-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 12,
     fontWeight: 600,
-    color: '#4A1B0C',
+    color: 'var(--text-inverse)',
     cursor: 'pointer',
   },
   balancePill: {
@@ -89,9 +90,13 @@ export default function Header({ activeNav, setActiveNav }) {
   return (
     <header style={styles.header}>
       <div style={styles.left}>
-        <div>
-          <span style={styles.logo}>hey</span>
-          <span style={styles.tagline}>tu banco inteligente</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <img 
+            src="/assets/imgs/hey_logo.png"  /* o la ruta de tu imagen */
+            alt="Hey Banco"
+            style={{ height: 28, width: 'auto' }}
+        />
+            <span style={styles.tagline}>tu banco inteligente</span>
         </div>
         <nav style={styles.nav}>
           {NAV_ITEMS.map(item => (
