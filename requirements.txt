@@ -1,3 +1,7 @@
 duckdb
 fastapi
 pydantic
+numpy
+pandas
+uvicorn
+re

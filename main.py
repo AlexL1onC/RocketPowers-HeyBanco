@@ -1,3 +1,4 @@
+import re
 from fastapi import FastAPI
 from pydantic import BaseModel
 import duckdb
@@ -12,8 +13,16 @@ def query_db(sql: str, params=None):
     df = con.execute(sql, params or []).fetchdf()
     con.close()
     return df
+
 def r(x):
     return round(float(x), 2)
+
+def limpiar_texto(texto):
+    if not texto or texto == "None":
+        return ""
+
+    texto = re.sub(r'\s+', ' ', texto)
+    return texto.strip()
 
 @app.get("/")
 def home():
@@ -51,7 +60,7 @@ def user_summary(user_id: str):
             patron_uso_atipico
         FROM clientes
         WHERE user_id = ?
-    """, [user_id])
+    """, [user_id]).fillna(0)
 
     if cliente.empty:
         return {"error": "Usuario no encontrado", "user_id": user_id}
@@ -87,7 +96,7 @@ def user_summary(user_id: str):
 
         FROM productos
         WHERE user_id = ?
-    """, [user_id])
+    """, [user_id]).fillna(0)
 
     transacciones = query_db("""
         SELECT
@@ -100,7 +109,7 @@ def user_summary(user_id: str):
             COALESCE(SUM(cashback_generado), 0) AS cashback_total
         FROM transacciones
         WHERE user_id = ?
-    """, [user_id])
+    """, [user_id]).fillna(0)
 
     categoria_top = query_db("""
         SELECT categoria_mcc, SUM(monto) AS total
@@ -109,13 +118,22 @@ def user_summary(user_id: str):
         GROUP BY categoria_mcc
         ORDER BY total DESC
         LIMIT 1
-    """, [user_id])
+    """, [user_id]).fillna(0)
     tipos_producto = query_db("""
         SELECT tipo_producto, COUNT(*) AS cantidad
         FROM productos
         WHERE user_id = ?
         GROUP BY tipo_producto
     """, [user_id]) 
+
+    conversaciones_df = query_db("""
+        SELECT input 
+        FROM conversaciones 
+        WHERE user_id = ? 
+        LIMIT 5
+    """, [user_id])
+
+    historial_limpio = [limpiar_texto(row['input']) for _, row in conversaciones_df.iterrows()]
 
     row_cliente = cliente.iloc[0]
     row_productos = productos.iloc[0]
@@ -171,6 +189,10 @@ def user_summary(user_id: str):
             "transacciones_internacionales": int(row_tx["transacciones_internacionales"]),
             "cashback_total": r(row_tx["cashback_total"]),
             "categoria_top": categoria_top.iloc[0]["categoria_mcc"] if not categoria_top.empty else None
+        },
+
+        "contexto_conversacion": {
+            "historial_previo": historial_limpio
         }
     }
 
